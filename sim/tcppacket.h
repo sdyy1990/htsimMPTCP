@@ -34,7 +34,7 @@ public:
     inline void set_ts(simtime_picosec ts) {
         _ts = ts;
     }
-    const static int DEFAULTDATASIZE=1000; // size of a data packet, measured in bytes; used by TcpSrc
+    const static uint64_t DEFAULTDATASIZE=1000; // size of a data packet, measured in bytes; used by TcpSrc
 protected:
     seq_t _seqno;
     simtime_picosec _ts;

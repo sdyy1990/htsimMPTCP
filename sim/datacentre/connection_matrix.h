@@ -19,7 +19,7 @@ class ConnectionMatrix{
   void setPermutation(int conn);
   void setPermutation();
   void setRandom(int conns);
-  void setStride(int many);
+  void setStride(int many,int n);
   void setLocalTraffic(Topology* top);
   void setStaggeredRandom(Topology* top,int conns,double local);
   void setStaggeredPermutation(Topology* top,double local);

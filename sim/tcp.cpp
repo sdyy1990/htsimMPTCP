@@ -42,6 +42,11 @@ TcpSrc::TcpSrc(TcpLogger* logger, TrafficLogger* pktlogger,
 
     _rtx_timeout_pending = false;
     _RFC2988_RTO_timeout = timeInf;
+
+
+    _max_packets = -1;
+    _terminated = false;
+
 }
 
 #ifdef PACKET_SCATTER
@@ -310,13 +315,18 @@ TcpSrc::inflate_window() {
 // Note: the data sequence number is the number of Byte1 of the packet, not the last byte.
 void
 TcpSrc::send_packets() {
+    //cout << "ACKed"<<_last_acked <<" "<< this->str()<<" "<<_max_packets<<" "<< TcpPacket::DEFAULTDATASIZE<<" ";
+//    cout << (_max_packets-1)*(TcpPacket::DEFAULTDATASIZE) << endl;
+    if (_max_packets>0) if (_last_acked >= (_max_packets-1)*(TcpPacket::DEFAULTDATASIZE)){
+        _terminated = true;
+    }
+    if (_terminated) return; 
     int c = _cwnd;
 
     if (_app_limited>=0 && _rtt>0) {
         uint64_t d = (uint64_t)_app_limited * _rtt/1000000000;
-        if (c>d) {
-            c = d;
-        }
+        //uint64_t e = _max_packets - _last_acked;
+        if (c>d) c = d;
         //if (c<1000)
         //c = 1000;
 
@@ -328,7 +338,7 @@ TcpSrc::send_packets() {
         //printf("%d\n",c);
     }
 
-    while (_last_acked + c >= _highest_sent + _mss) {
+    while (_last_acked + c >= _highest_sent + _mss && _highest_sent<_max_packets*(TcpPacket::DEFAULTDATASIZE)) {
 #ifdef PACKET_SCATTER
         TcpPacket* p = TcpPacket::newpkt(_flow, *(_paths->at(_crt_path)), _highest_sent+1, _mss);
         _crt_path = (_crt_path + 1) % _paths->size();
@@ -543,4 +553,7 @@ TcpRtxTimerScanner::doNextEvent()
         (*i)->rtx_timer_hook(now,_scanPeriod);
     }
     eventlist().sourceIsPendingRel(*this, _scanPeriod);
+}
+void TcpSrc::set_max_packets(uint64_t mx) {
+    _max_packets = mx;
 }

@@ -75,6 +75,7 @@ public:
 
     route_t* _route;
     simtime_picosec _last_ping;
+    void set_max_packets(uint64_t mx);
 #ifdef PACKET_SCATTER
     vector<route_t*>* _paths;
 
@@ -99,6 +100,8 @@ private:
 
     //	void clearWhen(TcpAck::seq_t from, TcpAck::seq_t to);
     //void showWhen (int from, int to);
+    uint64_t _max_packets;
+    bool _terminated;
 };
 
 class TcpSink : public PacketSink, public DataReceiver, public Logged {

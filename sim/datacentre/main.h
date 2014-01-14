@@ -4,8 +4,8 @@
 #include <string>
 
 
-#define HOST_NIC 8000 // host nic speed in pps
-#define CORE_TO_HOST 10
+#define HOST_NIC 125000 // host nic speed in pps
+#define CORE_TO_HOST 1
 
 //basic setup!
 

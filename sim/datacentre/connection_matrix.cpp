@@ -89,8 +89,9 @@ void ConnectionMatrix::setPermutation() {
     }
 }
 
-void ConnectionMatrix::setStride(int S) {
-    for (int src = 0; src<N; src++) {
+void ConnectionMatrix::setStride(int S,int n = 0) {
+    if (n<=0) n=N;
+    for (int src = 0; src<n; src++) {
         int dest = (src+S)%N;
 
         connections[src] = new vector<int>();
