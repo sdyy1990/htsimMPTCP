@@ -1,0 +1,29 @@
+htsim version 0.1
+------------------
+
+Opertaing System
+----------------
+was tested on linux and free bsd/mac osx.
+
+To install: uncompress and
+- run make in sim directory
+- run make in the sim/datacentre
+
+1. To run tests with htsim in simple topologies just 
+invoke the executable sim/htsim. The topology is created in the main file
+By default it will output data to ../data/logout.dat. 
+
+To analyze logs: install R first (http://cran.r-project.org/).
+In R, set the working directory to analysis and load analysis.R
+This will parse the data/logout.dat file. See docs on how to plot
+various data.
+
+2. To run datacentre simulations go to sim/datacentre. The main file
+includes the topology (fattree or star - this is basically a switch) and 
+the connection matrix. Run make and then call htsim_dc with the following params:
+htsim_dc -o NAME_OF_OUTPUT_FILE - name of the logfile that will have the experiment results 
+	 [-sub SUBFLOW_COUNT]  - how many subflows should we use per connection?
+	 [-param PARAMS_FOR_CONNECTION_MATRIX] connection matrix dependent, e.g. how many connections per host
+	 [CONGESTION_CONTROL_ALGORITHM] regular TCP for each subflow or MPTCP? Defaults to MPTCP.
+
+
