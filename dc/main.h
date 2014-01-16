@@ -50,4 +50,7 @@
 #define RANDOM_BUFFER 2
 #define FEEDER_BUFFER 1000
 
+
+const int IAMHOST=1048576;
+
 #endif

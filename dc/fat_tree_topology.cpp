@@ -12,10 +12,9 @@ string itoa(uint64_t n);
 
 extern int N;
 
-FatTreeTopology::FatTreeTopology(Logfile* lg, EventList* ev,FirstFit * fit) {
+FatTreeTopology::FatTreeTopology(Logfile* lg, EventList* ev) {
     logfile = lg;
     eventlist = ev;
-    ff = fit;
 
     N = K * K * K /4;
 
@@ -77,10 +76,6 @@ void FatTreeTopology::init_network() {
             pipes_ns_nlp[k][j]->setName("Pipe-ns-nt-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_ns_nlp[k][j]));
 
-            if (ff) {
-                ff->add_queue(queues_nlp_ns[j][k]);
-                ff->add_queue(queues_ns_nlp[k][j]);
-            }
         }
     }
 
@@ -118,10 +113,6 @@ void FatTreeTopology::init_network() {
             pipes_nlp_nup[j][k]->setName("Pipe-nt-na-" + ntoa(j) + "-" + ntoa(k));
             logfile->writeName(*(pipes_nlp_nup[j][k]));
 
-            if (ff) {
-                ff->add_queue(queues_nlp_nup[j][k]);
-                ff->add_queue(queues_nup_nlp[k][j]);
-            }
         }
     }
 
@@ -166,11 +157,6 @@ void FatTreeTopology::init_network() {
             pipes_nc_nup[k][j] = new Pipe(timeFromUs(RTT), *eventlist);
             pipes_nc_nup[k][j]->setName("Pipe-nc-nup-" + ntoa(k) + "-" + ntoa(j));
             logfile->writeName(*(pipes_nc_nup[k][j]));
-
-            if (ff) {
-                ff->add_queue(queues_nup_nc[j][k]);
-                ff->add_queue(queues_nc_nup[k][j]);
-            }
         }
     }
 

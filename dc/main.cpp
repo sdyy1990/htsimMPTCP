@@ -16,10 +16,10 @@
 #include "tcp.h"
 #include "tcp_transfer.h"
 #include "cbr.h"
-#include "firstfit.h"
 #include "topology.h"
 #include "connection_matrix.h"
 #include "fat_tree_topology.h"
+#include "sw_topology.h"
 //#include "star_topology.h"
 #include <list>
 
@@ -31,16 +31,13 @@
 #include "main.h"
 
 int RTT = 100;					// Identical RTT microseconds = 0.1 ms
-//int N = 512;
 int N = 128;
 
-FirstFit *ff = NULL;
 unsigned int subflow_count = 1;
 
 string ntoa (double n);
 string itoa (uint64_t n);
 
-//#define SWITCH_BUFFER (SERVICE * RTT / 1000)
 #define USE_FIRST_FIT 0
 #define FIRST_FIT_INTERVAL 100
 
@@ -72,6 +69,8 @@ print_path (std::ofstream & paths, route_t * rt)
 
     paths << endl;
 }
+const int FATTREE_TOPO = 1;
+const int SW_TOPO = 2;
 
 int
 main (int argc, char **argv)
@@ -84,6 +83,9 @@ main (int argc, char **argv)
     stringstream filename (ios_base::out);
     uint64_t pktperflow = 1048576LL/1000 + 1;
     bool uselog = false;
+    uint32_t topoType = FATTREE_TOPO;
+    uint32_t NHost,NSwitch,NPort;
+    char * topofilename;
     if (argc > 1) {
         int i = 1;
 
@@ -101,16 +103,21 @@ main (int argc, char **argv)
         }
 
         if (argc > i && !strcmp (argv[i], "-flowM")) {
-            pktperflow = atoi (argv[i + 1])*1048576LL/1000;
+            pktperflow = atoi (argv[i + 1])*1048576LL/1000 + 1;
             i += 2;
             cout << "Using subflow count " << subflow_count << endl;
         }
         if (argc > i && !strcmp (argv[i], "-param")) {
-            param = atoi (argv[i + 1]);
-            i += 2;
+            param = atoi (argv[i + 1]);            i += 2;
             cout << "Using subflow count " << subflow_count << endl;
         }
+        if (argc > i && !strcmp (argv[i], "-NHost")) {  NHost = atoi (argv[i + 1]);            i += 2;   }
+        if (argc > i && !strcmp (argv[i], "-NSwitch")) {  NSwitch = atoi (argv[i + 1]);            i += 2;   }
+        if (argc > i && !strcmp (argv[i], "-NPort")) {  NPort = atoi (argv[i + 1]);            i += 2;   }
+        if (argc >i && !strcmp ( argv[i],"-type")) {
+            if (!strcmp(argv[i+1],"SW")) {  topofilename = argv[i+2]; i+=3; topoType = SW_TOPO;      }
 
+        }
 
         if (argc > i) {
             epsilon = -1;
@@ -139,6 +146,7 @@ main (int argc, char **argv)
         }
     }
 
+    N = NHost;
     srand (time (NULL));
     cout << "Using algo=" << algo << " epsilon=" << epsilon << endl;
     // prepare the loggers
@@ -182,27 +190,9 @@ main (int argc, char **argv)
     }
 
 #endif
-#ifdef FAT_TREE
-    FatTreeTopology *top = new FatTreeTopology (&logfile, &eventlist, ff);
-#endif
-#ifdef OV_FAT_TREE
-    OversubscribedFatTreeTopology *top =
-        new OversubscribedFatTreeTopology (&logfile, &eventlist, ff);
-#endif
-#ifdef MH_FAT_TREE
-    MultihomedFatTreeTopology *top =
-        new MultihomedFatTreeTopology (&logfile, &eventlist, ff);
-#endif
-#ifdef STAR
-    StarTopology *top = new StarTopology (&logfile, &eventlist, ff);
-#endif
-#ifdef BCUBE
-    BCubeTopology *top = new BCubeTopology (&logfile, &eventlist, ff);
-    cout << "BCUBE " << K << endl;
-#endif
-#ifdef VL2
-    VL2Topology *top = new VL2Topology (&logfile, &eventlist, ff);
-#endif
+    Topology *top ;
+    if (topoType == FATTREE_TOPO)        top    = new FatTreeTopology (&logfile, &eventlist);
+    if (topoType == SW_TOPO)        top    = new SWTopology (&logfile, &eventlist, topofilename);
     vector < route_t * >***net_paths;
     net_paths = new vector < route_t * >**[N];
     int *is_dest = new int[N];
@@ -216,9 +206,6 @@ main (int argc, char **argv)
         }
     }
 
-    if (ff) {
-        ff->net_paths = net_paths;
-    }
 
     vector < int >*destinations;
     // Permutation connections
@@ -249,6 +236,11 @@ main (int argc, char **argv)
 
             if (!net_paths[src][dest]) {
                 net_paths[src][dest] = top->get_paths (src, dest);
+                for (vector<route_t*>::iterator iA = 
+                    net_paths[src][dest]->begin();
+                    iA!=net_paths[src][dest]->end();
+                    iA++)
+                        (*iA)->erase((*iA)->begin());
             }
 
             //we should create multiple connections. How many?
@@ -338,9 +330,6 @@ main (int argc, char **argv)
                 cout << "Using PACKET SCATTER!!!!" << endl << end;
 #endif
 
-                if (ff && !inter) {
-                    ff->add_flow (src, dest, tcpSrc);
-                }
 
                 sinkLogger.monitorSink (tcpSnk);
                 //           }
@@ -377,7 +366,7 @@ main (int argc, char **argv)
             cout << endl;
         }
     }
-    cout << timeAsMs(eventlist.now());
+    cout << timeAsMs(eventlist.now()) << endl;
 }
 
 string

@@ -6,7 +6,6 @@
 #include "config.h"
 #include "loggers.h"
 #include "network.h"
-#include "firstfit.h"
 #include "topology.h"
 #include "logfile.h"
 #include "eventlist.h"
@@ -41,11 +40,10 @@ class FatTreeTopology: public Topology{
   RandomQueue * queues_nlp_nup[NK][NK];
   RandomQueue * queues_ns_nlp[NSRV][NK];
 
-  FirstFit * ff;
   Logfile* logfile;
   EventList* eventlist;
   
-  FatTreeTopology(Logfile* log,EventList* ev,FirstFit* f);
+  FatTreeTopology(Logfile* log,EventList* ev);
 
   void init_network();
   virtual vector<route_t*>* get_paths(int src, int dest);
