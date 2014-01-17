@@ -1,6 +1,7 @@
 #include "config.h"
 #include <sstream>
 #include <iostream>
+#include <bitset>
 #include <string.h>
 #include <math.h>
 #include "network.h"
@@ -20,6 +21,7 @@
 #include "connection_matrix.h"
 #include "fat_tree_topology.h"
 #include "sw_topology.h"
+#include "s2_topology.h"
 //#include "star_topology.h"
 #include <list>
 
@@ -71,7 +73,9 @@ print_path (std::ofstream & paths, route_t * rt)
 }
 const int FATTREE_TOPO = 1;
 const int SW_TOPO = 2;
-
+const int S2_TOPO = 3;
+const int STRIDE_TRAFFIC = 1;
+const int PERMUTAION_TRAFFIC = 2;
 int
 main (int argc, char **argv)
 {
@@ -79,49 +83,48 @@ main (int argc, char **argv)
     Clock c (timeFromSec (50 / 100.), eventlist);
     int algo = COUPLED_EPSILON;
     double epsilon = 1;
-    int param = 0;
+    int traffic_param = 0;
+    int traffic_style = -1;
     stringstream filename (ios_base::out);
     uint64_t pktperflow = 1048576LL/1000 + 1;
     bool uselog = false;
     uint32_t topoType = FATTREE_TOPO;
-    uint32_t NHost,NSwitch,NPort;
     char * topofilename;
-    if (argc > 1) {
-        int i = 1;
-
-        if (!strcmp (argv[1], "-o")) {
-            filename << argv[2];
-            i += 2;
-            uselog = true;
-        } else {
-            filename << "logout.dat";
-        }
-
+    filename << "logout.dat";
+    int i = 1;
+    while (i < argc) {
+        int i0=i;
         if (argc > i && !strcmp (argv[i], "-sub")) {
             subflow_count = atoi (argv[i + 1]);
             i += 2;
+            cout << "Using subflow count " << subflow_count << endl;
         }
-
         if (argc > i && !strcmp (argv[i], "-flowM")) {
             pktperflow = atoi (argv[i + 1])*1048576LL/1000 + 1;
             i += 2;
+        }
+        if (argc > i && !strcmp (argv[i], "-tra")) {
+            if (argv[i+1][0]=='S') 
+                traffic_style = STRIDE_TRAFFIC;
+            if (argv[i+1][0]=='P')
+                traffic_style = PERMUTAION_TRAFFIC;
+
+            traffic_param = atoi (argv[i + 2]);
+            i += 3;
             cout << "Using subflow count " << subflow_count << endl;
         }
-        if (argc > i && !strcmp (argv[i], "-param")) {
-            param = atoi (argv[i + 1]);            i += 2;
-            cout << "Using subflow count " << subflow_count << endl;
-        }
-        if (argc > i && !strcmp (argv[i], "-NHost")) {  NHost = atoi (argv[i + 1]);            i += 2;   }
-        if (argc > i && !strcmp (argv[i], "-NSwitch")) {  NSwitch = atoi (argv[i + 1]);            i += 2;   }
-        if (argc > i && !strcmp (argv[i], "-NPort")) {  NPort = atoi (argv[i + 1]);            i += 2;   }
         if (argc >i && !strcmp ( argv[i],"-type")) {
-            if (!strcmp(argv[i+1],"SW")) {  topofilename = argv[i+2]; i+=3; topoType = SW_TOPO;      }
-
+            if (!strcmp(argv[i+1],"SW")) {
+                topofilename = argv[i+2];    i+=3;        topoType = SW_TOPO;
+            }
+            if (!strcmp(argv[i+1],"S2")) {
+                topofilename = argv[i+2];    i+=3;        topoType = S2_TOPO;
+            }
+            
         }
-
+        if (i0!=i) continue;
         if (argc > i) {
             epsilon = -1;
-
             if (!strcmp (argv[i], "UNCOUPLED")) {
                 algo = UNCOUPLED;
             } else if (!strcmp (argv[i], "COUPLED_INC")) {
@@ -134,11 +137,9 @@ main (int argc, char **argv)
                 algo = COUPLED_SCALABLE_TCP;
             } else if (!strcmp (argv[i], "COUPLED_EPSILON")) {
                 algo = COUPLED_EPSILON;
-
                 if (argc > i + 1) {
                     epsilon = atof (argv[i + 1]);
                 }
-
                 printf ("Using epsilon %f\n", epsilon);
             } else {
                 exit_error (argv[0]);
@@ -146,7 +147,6 @@ main (int argc, char **argv)
         }
     }
 
-    N = NHost;
     srand (time (NULL));
     cout << "Using algo=" << algo << " epsilon=" << epsilon << endl;
     // prepare the loggers
@@ -183,16 +183,11 @@ main (int argc, char **argv)
     MultipathTcpSrc *mtcp;
     vector<MultipathTcpSrc*> mptcpVector;
     int dest;
-#if USE_FIRST_FIT
-
-    if (subflow_count == 1) {
-        ff = new FirstFit (timeFromMs (FIRST_FIT_INTERVAL), eventlist);
-    }
-
-#endif
-    Topology *top ;
+    Topology *top;
     if (topoType == FATTREE_TOPO)        top    = new FatTreeTopology (&logfile, &eventlist);
     if (topoType == SW_TOPO)        top    = new SWTopology (&logfile, &eventlist, topofilename);
+    if (topoType == S2_TOPO)        top    = new S2Topology (&logfile, &eventlist, topofilename);
+    N = top->get_host_count();
     vector < route_t * >***net_paths;
     net_paths = new vector < route_t * >**[N];
     int *is_dest = new int[N];
@@ -208,22 +203,15 @@ main (int argc, char **argv)
 
 
     vector < int >*destinations;
-    // Permutation connections
     ConnectionMatrix *conns = new ConnectionMatrix (N);
-    //conns->setLocalTraffic(top);
-    //cout << "Running perm with " << param << " connections" << endl;
-    //conns->setPermutation(param);
-    //conns->setStaggeredPermutation(top,(double)param/100.0);
-    //conns->setStaggeredRandom(top,512,1);
-//    conns->setHotspot(param,512/param);
-    conns->setStride (3,0);
-    //conns->setManytoMany(128);
-    //conns->setVL2();
-    //conns->setRandom(param);
+    if (traffic_style == STRIDE_TRAFFIC) 
+        conns->setStride(traffic_param,0);
+    if (traffic_style == PERMUTAION_TRAFFIC)
+        conns->setPermutation(traffic_param);
     map < int, vector < int >*>::iterator it;
     int connID = 0;
     MultipathTcpSrcListener *mlistener ;
-     mlistener = new MultipathTcpSrcListener();
+    mlistener = new MultipathTcpSrcListener();
     for (it = conns->connections.begin (); it != conns->connections.end ();
             it++) {
         int src = (*it).first;
@@ -236,11 +224,11 @@ main (int argc, char **argv)
 
             if (!net_paths[src][dest]) {
                 net_paths[src][dest] = top->get_paths (src, dest);
-                for (vector<route_t*>::iterator iA = 
-                    net_paths[src][dest]->begin();
-                    iA!=net_paths[src][dest]->end();
-                    iA++)
-                        (*iA)->erase((*iA)->begin());
+                for (vector<route_t*>::iterator iA =
+                            net_paths[src][dest]->begin();
+                        iA!=net_paths[src][dest]->end();
+                        iA++)
+                    (*iA)->erase((*iA)->begin());
             }
 
             //we should create multiple connections. How many?
@@ -252,7 +240,7 @@ main (int argc, char **argv)
             } else {
                 mtcp = new MultipathTcpSrc (algo, eventlist, NULL);
             }
-	    mtcp->listener = mlistener;
+            mtcp->listener = mlistener;
             mptcpVector.push_back(mtcp);
             //uint64_t bb = generateFlowSize();
             //      if (subflow_control)
@@ -271,7 +259,8 @@ main (int argc, char **argv)
             //if (connID%10!=0)
             //it_sub = 1;
             uint64_t pktpersubflow = pktperflow / it_sub;
-
+            bitset<1024> used;
+            used.reset();
             for (int inter = 0; inter < it_sub; inter++) {
                 //              if (connID%10==0){
                 tcpSrc = new TcpSrc (NULL, NULL, eventlist);
@@ -293,8 +282,15 @@ main (int argc, char **argv)
                 logfile.writeName (*tcpSnk);
                 tcpRtxScanner.registerTcp (*tcpSrc);
 
-
-                int  choice = rand () % net_paths[src][dest]->size ();
+                int choice = 0;
+                if (inter!=0) {
+                    while (true) {
+                        choice = rand () % net_paths[src][dest]->size ();
+                        if (used[choice]==0)
+                            break;
+                    }
+                }
+                used[choice] = 1;
                 subflows_chosen.push_back (choice);
 
                 if (choice >= net_paths[src][dest]->size ()) {
@@ -353,15 +349,20 @@ main (int argc, char **argv)
     logfile.write ("# rtt =" + ntoa (rtt));
     // GO!
     double last = 0.0;
-
+    vector<uint64_t> finished_bytes;
+    double tick = 100.0;
+    finished_bytes.resize(mptcpVector.size());
     while (eventlist.doNextEvent ()) {
         if (mlistener->_total_finished == cnt_con) break;
-        if (timeAsMs(eventlist.now())>last+10.0) {
+        if (timeAsMs(eventlist.now())>last+tick) {
             cout << (last =  timeAsMs(eventlist.now())) <<" "<<mlistener->_total_finished  << endl;
-
-            for (vector<MultipathTcpSrc*>::iterator iA = mptcpVector.begin(); iA!=mptcpVector.end(); iA++) {
-                cout << (*iA)->compute_total_bytes()*0.001*0.001 <<" ";
+            vector<uint64_t>::iterator iB = finished_bytes.begin();
+            for (vector<MultipathTcpSrc*>::iterator iA = mptcpVector.begin();  iA!=mptcpVector.end(); iA++,iB++) {
+                uint64_t ttmp;
+                cout << ((ttmp=(*iA)->compute_total_bytes())-*iB)/(1000*tick) <<" ";
+                (*iB = ttmp); 
             }
+            
 
             cout << endl;
         }
@@ -373,6 +374,11 @@ string
 ntoa (double n)
 {
     stringstream s;
+
+    if (n>IAMHOST) {
+        n-=IAMHOST;
+        s <<"H";
+    }
     s << n;
     return s.str ();
 }
@@ -381,6 +387,10 @@ string
 itoa (uint64_t n)
 {
     stringstream s;
+    if (n>IAMHOST) {
+        n-=IAMHOST;
+        s <<"H";
+    }
     s << n;
     return s.str ();
 }

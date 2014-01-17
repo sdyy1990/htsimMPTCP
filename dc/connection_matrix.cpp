@@ -1,93 +1,24 @@
 #include "connection_matrix.h"
 #include <string.h>
 #include <iostream>
-
+#include <algorithm>
 ConnectionMatrix::ConnectionMatrix(int n)
 {
     N = n;
 }
 
-void ConnectionMatrix::setPermutation(int conn) {
-    int is_dest[N],dest,pos;
-    int to[N];
-    vector<int> perm_tmp;
-
-    for (int i=0; i<N; i++) {
-        is_dest[i] = 0;
-        to[N] = -1;
-        perm_tmp.push_back(i);
-    }
-
-    for (int src = 0; src < N; src++) {
-        do {
-            pos = rand()%perm_tmp.size();
-        } while(src==perm_tmp[pos]&&perm_tmp.size()>1);
-
-        dest = perm_tmp[pos];
-        assert(src!=dest);
-
-        perm_tmp.erase(perm_tmp.begin()+pos);
-        to[src] = dest;
-    }
-
-    for (int i = 0; i<conn; i++) {
-        if (!perm_tmp.size())
-            for (int i=0; i<N; i++) {
-                perm_tmp.push_back(i);
-            }
-
-        pos = rand()%perm_tmp.size();
-        int src = perm_tmp[pos];
-        perm_tmp.erase(perm_tmp.begin()+pos);
-
-        if (connections.find(src)==connections.end()) {
-            connections[src] = new vector<int>();
-        }
-
-        connections[src]->push_back(to[src]);
+void ConnectionMatrix::setPermutation(int conn) { //duplicate random connections (form circles !, one circle for conn ==1)) for every host;
+    std::vector<int> to;
+    for (int i = 0; i< N; i ++) to.push_back(i);
+    for (int i = 0 ; i < N; i++) connections[i] = new vector<int> ();
+    for (int i = 0 ; i < conn; i++) {
+        std::random_shuffle(to.begin(), to.end());
+        for (int src = 0 ; src <N-1; src++)
+            connections[to[src]]->push_back(to[src+1]);
+        connections[to[N-1]] -> push_back(to[0]);
     }
 }
 
-void ConnectionMatrix::setPermutation() {
-    int is_dest[N],dest;
-
-    for (int i=0; i<N; i++)
-        is_dest[i] = 0;
-
-    for (int src = 0; src < N; src++) {
-        vector<int>* destinations = new vector<int>();
-
-        int r = rand()%(N-src);
-        for (dest = 0; dest<N; dest++) {
-            if (r==0&&!is_dest[dest])
-                break;
-            if (!is_dest[dest])
-                r--;
-        }
-
-        if (r!=0||is_dest[dest]) {
-            cout << "Wrong connections r " <<  r << "is_dest "<<is_dest[dest]<<endl;
-            exit(1);
-        }
-
-        if (src==dest) {
-            //find first other destination that is different!
-            do {
-                dest = (dest+1)%N;
-            }
-            while (is_dest[dest]);
-
-            if (src==dest) {
-                printf("Wrong connections 2!\n");
-                exit(1);
-            }
-        }
-        is_dest[dest] = 1;
-        destinations->push_back(dest);
-
-        connections[src] = destinations;
-    }
-}
 
 void ConnectionMatrix::setStride(int S,int n = 0) {
     if (n<=0) n=N;

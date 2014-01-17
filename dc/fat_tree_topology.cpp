@@ -20,7 +20,9 @@ FatTreeTopology::FatTreeTopology(Logfile* lg, EventList* ev) {
 
     init_network();
 }
-
+int FatTreeTopology::get_host_count() {
+    return N;
+}
 void FatTreeTopology::init_network() {
     QueueLoggerSampling* queueLogger;
 
