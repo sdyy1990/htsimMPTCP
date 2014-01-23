@@ -46,7 +46,7 @@ class FatTreeTopology: public Topology{
   FatTreeTopology(Logfile* log,EventList* ev);
 
   void init_network();
-  virtual vector<route_t*>* get_paths(int src, int dest);
+  virtual vector<pair<route_t*,route_t*> >* get_paths(int src, int dest);
   virtual int get_host_count();
   void count_queue(RandomQueue*);
   void print_path(std::ofstream& paths,int src,route_t* route);

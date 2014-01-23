@@ -10,7 +10,8 @@
 class JellyTopology: public SWTopology {
 public: 
     JellyTopology(Logfile * log, EventList *ev, char * fname , char * pathname);
-    vector<route_t *> * get_paths(int src, int dest);
+
+    virtual    vector<route_t *> * get_paths(int src, int dest);
     map< pair<int,int> , vector< vector< int> > >  mapP;
     void set_maxpathcount(int n);
     int max_pathcount;

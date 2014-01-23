@@ -19,10 +19,10 @@
 #include "cbr.h"
 #include "topology.h"
 #include "connection_matrix.h"
-#include "fat_tree_topology.h"
+//#include "fat_tree_topology.h"
 #include "sw_topology.h"
-#include "s2_topology.h"
-#include "jelly_topology.h"
+//#include "s2_topology.h"
+//#include "jelly_topology.h"
 //#include "star_topology.h"
 #include <list>
 
@@ -193,24 +193,20 @@ main (int argc, char **argv)
     vector<MultipathTcpSrc*> mptcpVector;
     int dest;
     Topology *top;
-    if (topoType == FATTREE_TOPO)        top    = new FatTreeTopology (&logfile, &eventlist);
+  //  if (topoType == FATTREE_TOPO)        top    = new FatTreeTopology (&logfile, &eventlist);
     if (topoType == SW_TOPO)        top    = new SWTopology (&logfile, &eventlist, topofilename);
-    if (topoType == S2_TOPO)        top    = new S2Topology (&logfile, &eventlist, topofilename);
-    if (topoType == JE_TOPO)        {
-        JellyTopology * jtop = new JellyTopology(&logfile, &eventlist, topofilename,pathfilename);
-        top = jtop;
-        jtop->set_maxpathcount(subflow_count);
-        }
+//    if (topoType == S2_TOPO)        top    = new S2Topology (&logfile, &eventlist, topofilename);
+//    if (topoType == JE_TOPO)        { JellyTopology * jtop = new JellyTopology(&logfile, &eventlist, topofilename,pathfilename); top = jtop;    jtop->set_maxpathcount(subflow_count);        }
 
 
     N = top->get_host_count();
-    vector < route_t * >***net_paths;
-    net_paths = new vector < route_t * >**[N];
+    vector < pair<route_t *,route_t *> >***net_paths;
+    net_paths = new vector < pair<route_t *,route_t * > >**[N];
     int *is_dest = new int[N];
 
     for (int i = 0; i < N; i++) {
         is_dest[i] = 0;
-        net_paths[i] = new vector < route_t * >*[N];
+        net_paths[i] = new vector < pair<route_t *,route_t *> >*[N];
 
         for (int j = 0; j < N; j++) {
             net_paths[i][j] = NULL;
@@ -242,11 +238,12 @@ main (int argc, char **argv)
 
             if (!net_paths[src][dest]) {
                 net_paths[src][dest] = top->get_paths (src, dest);
-                for (vector<route_t*>::iterator iA =
+/*                for (vectior<pair<route_t*,route_t*> >::iterator iA =
                             net_paths[src][dest]->begin();
                         iA!=net_paths[src][dest]->end();
                         iA++)
                     (*iA)->erase((*iA)->begin());
+                    */
             }
 
             //we should create multiple connections. How many?
@@ -320,14 +317,15 @@ main (int argc, char **argv)
 #if PRINT_PATHS
                 paths << "Route from " << ntoa (src) << " to " <<
                       ntoa (dest) << "  (" << choice << ") -> ";
-                print_path (paths, net_paths[src][dest]->at (choice));
+                print_path (paths, net_paths[src][dest]->at (choice).first);
 #endif
                 routeout =
-                    new route_t (*(net_paths[src][dest]->at (choice)));
+                    new route_t (*(net_paths[src][dest]->at (choice).first));
                 routeout->push_back (tcpSnk);
-                routein = new route_t ();
+                routein = 
+                    new route_t (*(net_paths[src][dest]->at (choice).second));
                 routein->push_back (tcpSrc);
-                extrastarttime = 50 * drand ();
+                extrastarttime = 50 * drand () /100;
                 //join multipath connection
                 mtcp->addSubflow (tcpSrc);
 
@@ -368,26 +366,28 @@ main (int argc, char **argv)
     // GO!
     double last = 0.0;
     vector<uint64_t> finished_bytes;
-    double tick = 100.0;
+    double tick = 10.0;
     finished_bytes.resize(mptcpVector.size());
     while (eventlist.doNextEvent ()) {
         if (mlistener->_total_finished == cnt_con) break;
         if (timeAsMs(eventlist.now())>last+tick) {
-            printf("%6.3lf,%6d,",(last =  timeAsMs(eventlist.now())) , mlistener->_total_finished);
+            printf("time=%6.3lf,finish=%6d,",(last =  timeAsMs(eventlist.now())) , mlistener->_total_finished);
             double tot = 0;
             double maxb = 0.0;
             vector<uint64_t>::iterator iB = finished_bytes.begin();
             for (vector<MultipathTcpSrc*>::iterator iA = mptcpVector.begin();  iA!=mptcpVector.end(); iA++,iB++) {
                 uint64_t ttmp;
-                printf("% 4.3lf,",((ttmp=(*iA)->compute_total_bytes())-*iB)/(1000*tick));
-
-                tot += (ttmp - *iB); 
+//              printf("% 4.3lf,",((ttmp=(*iA)->compute_total_bytes())-*iB)/(1000*tick));
+                double wq;
+                ttmp = (*iA)->compute_total_bytes();
+                tot += (wq=(ttmp - *iB)); 
+                if (wq/(1000*tick) > 125) printf("% 4lf,",wq/(1000*tick));
                 if (-*iB + ttmp > maxb) maxb =- *iB + ttmp;
                 *iB = ttmp;
             }
 
-            printf(",% 8.3lf\n",tot/mptcpVector.size()/(1000*tick));
-            printf("max = %8.3lf\n",maxb/(1000*tick));
+            printf("\n,avr=% 8.3lf,",tot/mptcpVector.size()/(1000*tick));
+            printf("max= %8.3lf\n",maxb/(1000*tick));
 
         }
     }

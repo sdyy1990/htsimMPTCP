@@ -8,7 +8,9 @@ const int QcnReactor::PACKETSPERRECOVERYCYCLE=100;
 const linkspeed_bps QcnReactor::RATEINCREASE=500000; //0.5Mb/s
 const linkspeed_bps QcnReactor::MINRATE=1000000; //1Mb/s
 const double QcnQueue::GAMMA = 2;
-
+int max(int a, int b) {
+return ((a)>(b)?(a):(b));
+}
 PacketDB<QcnPacket> QcnPacket::_packetdb;
 PacketDB<QcnAck> QcnAck::_packetdb;
 

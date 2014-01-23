@@ -23,14 +23,15 @@ public:
     Logfile * logfile;
     EventList * eventlist;
     void init_network();
-    virtual    vector<route_t *> * get_paths(int src, int dest);
+    virtual vector<pair<route_t*,route_t*> >* get_paths(int src, int dest);
+    virtual vector< vector<int> > get_paths_V(int src,int dest);
     virtual int get_host_count();
     vector< int > * get_neighbours(int src) { return NULL; };
     SWTopology(Logfile * log, EventList *ev, char * fname) ;
     SWTopology();
     virtual int virtual_distance(int src, int dest);
     void addlink(int a, int b);
-    virtual route_t * get_path_with_firsthop(int, int , int );
+    virtual vector<int> get_path_with_firsthop(int, int , int );
     
 };
 

@@ -1,3 +1,28 @@
+htsimSS v0.1
+------------------
+htsimSS is a network simulator. We modify the original htsim simulator
+
+(http://nets.cs.pub.ro/~costin/code.html , Dr. Costin Raiciu)
+
+in folder dc
+commandline
+    htsim_dc [-sub n.Subflow.Per.Connection]
+             [-flowM n.Connection.Size.in.MBytes]
+             [-type type.name ....] 
+                   type.name == 'SW' for smallworld
+                         -type SW File.Name
+                   type.name == 'S2' for SpaceShuffle
+                         -type S2 File.Name
+                   type.name == 'FT' for fat_tree
+                         -type FT n.K //the parameter K in FT
+             [-tra Traffic.type Traffic.paramter]
+                        -tra S t for stride(t)
+                        -tra P t for permutation of all hosts, ever host have t destinations, forming t circles.
+
+
+                      
+
+
 htsim version 0.1
 ------------------
 

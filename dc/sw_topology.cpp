@@ -2,7 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <iostream> 
+#include <iostream>
 #include "main.h"
 using namespace std;
 extern int RTT;
@@ -83,55 +83,73 @@ void SWTopology::init_network() {
 int SWTopology::get_host_count() {
     return assignedSwitch.size();
 }
-vector<route_t *> * SWTopology::get_paths(int src, int dest) { // src and dest refers to HOST , not switch;
+vector<vector<int> > SWTopology::get_paths_V(int src, int dest) {
+
     int now = assignedSwitch[src];
     int end = assignedSwitch[dest];
-    vector<route_t*>* paths = new vector<route_t*>();
+    vector<vector<int> > pathV;
     if (now == end) {
-        route_t * routeout;
-        routeout = new route_t();
-        routeout->push_back(mapQ[make_pair(src+IAMHOST,now)].first);
-        routeout->push_back(mapQ[make_pair(src+IAMHOST,now)].second);
-
-        routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].first);
-        routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].second);
-        paths -> push_back(routeout);
-        return paths;
+        vector<int> PP;
+        PP.push_back(src+IAMHOST);
+        PP.push_back(now);
+        PP.push_back(dest+IAMHOST);
+        pathV.push_back(PP);
     }
-
-    vector<int> first_hop_choice;
-    int mindest = 0x3FFFFFF;
-    int mindestid = -1;
-    int destnow = virtual_distance(now,end);
-    for (int i = 0 ; i < neighbors[now].size(); i++) if (neighbors[now][i]<IAMHOST) {
-            int idest;
-            if ((idest = virtual_distance(neighbors[now][i],end)) < destnow) {
-                first_hop_choice.push_back(neighbors[now][i]);
-                if (idest< mindest) {
-                    mindest = idest;
-                    mindestid = first_hop_choice.size() -1;
+    else {
+        vector<int> first_hop_choice;
+        int mindest = 0x3FFFFFF;
+        int mindestid = -1;
+        int destnow = virtual_distance(now,end);
+        for (int i = 0 ; i < neighbors[now].size(); i++) if (neighbors[now][i]<IAMHOST) {
+                int idest;
+                if ((idest = virtual_distance(neighbors[now][i],end)) < destnow) {
+                    first_hop_choice.push_back(neighbors[now][i]);
+                    if (idest< mindest) {
+                        mindest = idest;
+                        mindestid = first_hop_choice.size() -1;
+                    }
                 }
             }
+        if (mindestid!=0) {
+            int t = first_hop_choice[mindestid];
+            first_hop_choice[mindestid] = first_hop_choice[0];
+            first_hop_choice[0] = t;
         }
-    if (mindestid!=0) {
-        int t = first_hop_choice[mindestid];
-        first_hop_choice[mindestid] = first_hop_choice[0];
-        first_hop_choice[0] = t;
+        for (int i = 0 ; i < first_hop_choice.size(); i++) {
+            pathV.push_back( get_path_with_firsthop(src,dest,first_hop_choice[i]));
+        }
     }
-    for (int i = 0 ; i < first_hop_choice.size(); i++) {
-        paths->push_back( get_path_with_firsthop(src,dest,first_hop_choice[i]));
+    return pathV;
+}
+vector<pair<route_t *, route_t *> > * SWTopology::get_paths(int src, int dest) { // src and dest refers to HOST , not switch;
+    vector<vector<int> > pathV = get_paths_V(src,dest);
+    vector<pair<route_t *, route_t *> > *paths = new vector<pair<route_t *, route_t *> > ();
+    for (int i = 0 ; i < pathV.size(); i++) {
+        route_t * rout, * rin;
+        rout = new route_t ();
+        rin = new route_t();
+        for (int j = 0 ; j < pathV[i].size() -1; j++) {
+            rout->push_back(mapQ[make_pair(pathV[i][j],pathV[i][j+1])].first);
+            rout->push_back(mapQ[make_pair(pathV[i][j],pathV[i][j+1])].second);
+        }
+        for (int j = pathV[i].size() -1 ; j >1 ; j--) {
+            rin->push_back(mapQ[make_pair(pathV[i][j],pathV[i][j-1])].first);
+            rin->push_back(mapQ[make_pair(pathV[i][j],pathV[i][j-1])].second);
+        }
+        rout->erase(rout->begin());
+        rin->erase(rin->begin());
+        paths->push_back(make_pair(rout,rin));
+
     }
     return paths;
 }
-route_t * SWTopology::get_path_with_firsthop(int src,int dest, int first_hop) {
-    route_t * routeout;
-    routeout = new route_t();
+vector<int>  SWTopology::get_path_with_firsthop(int src,int dest, int first_hop) {
+    vector<int> ans;
     int now = first_hop;
     int end = assignedSwitch[dest];
-    routeout->push_back(mapQ[make_pair(src+IAMHOST,assignedSwitch[src])].first);
-    routeout->push_back(mapQ[make_pair(src+IAMHOST,assignedSwitch[src])].second);
-    routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].first);
-    routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].second);
+    ans.push_back(src+IAMHOST);
+    ans.push_back(assignedSwitch[src]);
+    ans.push_back(now);
     while (now!=end) {
         std::cout <<  "   end  " << end << "    now" << now << endl;
         int mindest = 0x3FFFFFFF;
@@ -143,17 +161,16 @@ route_t * SWTopology::get_path_with_firsthop(int src,int dest, int first_hop) {
                     nxt = neighbors[now][i];
                 }
             }
-        routeout->push_back(mapQ[make_pair(now,nxt)].first);
-        routeout->push_back(mapQ[make_pair(now,nxt)].second);
+        ans.push_back(nxt);
         now = nxt;
 
 
     }
-    routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].first);
-    routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].second);
-    return routeout;
+    ans.push_back(dest+IAMHOST);
+    return ans;
 }
- int SWTopology::virtual_distance(int src, int dest) {
+
+int SWTopology::virtual_distance(int src, int dest) {
     int dx = cX[src]-cX[dest];
     int dy = cY[src]-cY[dest];
     int dz = cZ[src]-cZ[dest];
