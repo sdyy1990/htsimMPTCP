@@ -13,8 +13,11 @@ public:
     vector<vector<int> > coor;
     map<int,double> hostcoor;
     S2Topology(Logfile * log, EventList *ev, char * fname);
+    map< pair<int,int> , vector<int> > mapP;
+
 private:
     int virtual_distance(int src, int dest);
     route_t * get_path_with_firsthop(int , int , int );
 };
+    
 #endif 

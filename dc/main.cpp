@@ -22,6 +22,7 @@
 #include "fat_tree_topology.h"
 #include "sw_topology.h"
 #include "s2_topology.h"
+#include "jelly_topology.h"
 //#include "star_topology.h"
 #include <list>
 
@@ -74,11 +75,15 @@ print_path (std::ofstream & paths, route_t * rt)
 const int FATTREE_TOPO = 1;
 const int SW_TOPO = 2;
 const int S2_TOPO = 3;
+const int JE_TOPO = 4;
 const int STRIDE_TRAFFIC = 1;
 const int PERMUTAION_TRAFFIC = 2;
+const int SINGLE_FLOW_NIC_TRAFFIC = 3;
 int
 main (int argc, char **argv)
 {
+    cout.setf(ios::fixed);
+    cout.precision(3);
     eventlist.setEndtime (timeFromSec (200));
     Clock c (timeFromSec (50 / 100.), eventlist);
     int algo = COUPLED_EPSILON;
@@ -89,7 +94,7 @@ main (int argc, char **argv)
     uint64_t pktperflow = 1048576LL/1000 + 1;
     bool uselog = false;
     uint32_t topoType = FATTREE_TOPO;
-    char * topofilename;
+    char * topofilename, *pathfilename;
     filename << "logout.dat";
     int i = 1;
     while (i < argc) {
@@ -108,7 +113,8 @@ main (int argc, char **argv)
                 traffic_style = STRIDE_TRAFFIC;
             if (argv[i+1][0]=='P')
                 traffic_style = PERMUTAION_TRAFFIC;
-
+            if (argv[i+1][0]=='O')
+                traffic_style = SINGLE_FLOW_NIC_TRAFFIC;
             traffic_param = atoi (argv[i + 2]);
             i += 3;
             cout << "Using subflow count " << subflow_count << endl;
@@ -119,6 +125,9 @@ main (int argc, char **argv)
             }
             if (!strcmp(argv[i+1],"S2")) {
                 topofilename = argv[i+2];    i+=3;        topoType = S2_TOPO;
+            }
+            if (!strcmp(argv[i+1],"JE")) {
+                topofilename = argv[i+2]; pathfilename = argv[i+3]; i+=4; topoType=JE_TOPO;
             }
             
         }
@@ -187,6 +196,13 @@ main (int argc, char **argv)
     if (topoType == FATTREE_TOPO)        top    = new FatTreeTopology (&logfile, &eventlist);
     if (topoType == SW_TOPO)        top    = new SWTopology (&logfile, &eventlist, topofilename);
     if (topoType == S2_TOPO)        top    = new S2Topology (&logfile, &eventlist, topofilename);
+    if (topoType == JE_TOPO)        {
+        JellyTopology * jtop = new JellyTopology(&logfile, &eventlist, topofilename,pathfilename);
+        top = jtop;
+        jtop->set_maxpathcount(subflow_count);
+        }
+
+
     N = top->get_host_count();
     vector < route_t * >***net_paths;
     net_paths = new vector < route_t * >**[N];
@@ -208,6 +224,8 @@ main (int argc, char **argv)
         conns->setStride(traffic_param,0);
     if (traffic_style == PERMUTAION_TRAFFIC)
         conns->setPermutation(traffic_param);
+    if (traffic_style == SINGLE_FLOW_NIC_TRAFFIC)
+        conns->setSingleFlow(traffic_param);
     map < int, vector < int >*>::iterator it;
     int connID = 0;
     MultipathTcpSrcListener *mlistener ;
@@ -355,16 +373,22 @@ main (int argc, char **argv)
     while (eventlist.doNextEvent ()) {
         if (mlistener->_total_finished == cnt_con) break;
         if (timeAsMs(eventlist.now())>last+tick) {
-            cout << (last =  timeAsMs(eventlist.now())) <<" "<<mlistener->_total_finished  << endl;
+            printf("%6.3lf,%6d,",(last =  timeAsMs(eventlist.now())) , mlistener->_total_finished);
+            double tot = 0;
+            double maxb = 0.0;
             vector<uint64_t>::iterator iB = finished_bytes.begin();
             for (vector<MultipathTcpSrc*>::iterator iA = mptcpVector.begin();  iA!=mptcpVector.end(); iA++,iB++) {
                 uint64_t ttmp;
-                cout << ((ttmp=(*iA)->compute_total_bytes())-*iB)/(1000*tick) <<" ";
-                (*iB = ttmp); 
-            }
-            
+                printf("% 4.3lf,",((ttmp=(*iA)->compute_total_bytes())-*iB)/(1000*tick));
 
-            cout << endl;
+                tot += (ttmp - *iB); 
+                if (-*iB + ttmp > maxb) maxb =- *iB + ttmp;
+                *iB = ttmp;
+            }
+
+            printf(",% 8.3lf\n",tot/mptcpVector.size()/(1000*tick));
+            printf("max = %8.3lf\n",maxb/(1000*tick));
+
         }
     }
     cout << timeAsMs(eventlist.now()) << endl;

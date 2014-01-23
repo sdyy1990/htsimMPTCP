@@ -65,7 +65,7 @@ route_t * S2Topology::get_path_with_firsthop(int src,int dest, int first_hop) {
     routeout->push_back(mapQ[make_pair(src+IAMHOST,assignedSwitch[src])].second);
     routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].first);
     routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].second);
-    cout << endl;
+    //cout << endl;
     while (now!=end) {
         int mindest = 0x3FFFFFFF;
         int nxt ;

@@ -29,6 +29,13 @@ void ConnectionMatrix::setStride(int S,int n = 0) {
         connections[src]->push_back(dest);
     }
 }
+void ConnectionMatrix::setSingleFlow(int who) {
+     for (int src = 0 ; src < N ; src++) {
+        connections[src] = new vector<int> ();
+        if (src == who)
+            connections[src]-> push_back((who+1)%N);
+    }
+}
 
 void ConnectionMatrix::setLocalTraffic(Topology* top) {
     for (int src = 0; src<N; src++) {

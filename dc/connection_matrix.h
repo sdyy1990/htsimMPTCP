@@ -20,13 +20,13 @@ class ConnectionMatrix{
   void setPermutation();
   void setRandom(int conns);
   void setStride(int many,int n);
+  void setSingleFlow(int who);
   void setLocalTraffic(Topology* top);
   void setStaggeredRandom(Topology* top,int conns,double local);
   void setStaggeredPermutation(Topology* top,double local);
   void setVL2();
   void setHotspot(int hosts_per_spot,int count);
   void setManytoMany(int hosts);
-
   vector<connection*>* getAllConnections();
 
   map<int,vector<int>*> connections;

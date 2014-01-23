@@ -132,7 +132,6 @@ route_t * SWTopology::get_path_with_firsthop(int src,int dest, int first_hop) {
     routeout->push_back(mapQ[make_pair(src+IAMHOST,assignedSwitch[src])].second);
     routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].first);
     routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].second);
-    cout << endl;
     while (now!=end) {
         std::cout <<  "   end  " << end << "    now" << now << endl;
         int mindest = 0x3FFFFFFF;
