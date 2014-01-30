@@ -56,16 +56,13 @@ int S2Topology::virtual_distance(int src, int dest) {
 }
 
 
-route_t * S2Topology::get_path_with_firsthop(int src,int dest, int first_hop) {
-    route_t * routeout;
-    routeout = new route_t();
+vector<int> S2Topology::get_path_with_firsthop(int src,int dest, int first_hop) {
     int now = first_hop;
     int end = assignedSwitch[dest];
-    routeout->push_back(mapQ[make_pair(src+IAMHOST,assignedSwitch[src])].first);
-    routeout->push_back(mapQ[make_pair(src+IAMHOST,assignedSwitch[src])].second);
-    routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].first);
-    routeout->push_back(mapQ[make_pair(assignedSwitch[src],now)].second);
-    //cout << endl;
+    vector<int> ans;
+    ans.push_back(src+IAMHOST);
+    ans.push_back(assignedSwitch[src]);
+    ans.push_back(now);
     while (now!=end) {
         int mindest = 0x3FFFFFFF;
         int nxt ;
@@ -83,13 +80,11 @@ route_t * S2Topology::get_path_with_firsthop(int src,int dest, int first_hop) {
                        }
                 }
             }
-        routeout->push_back(mapQ[make_pair(now,nxt)].first);
-        routeout->push_back(mapQ[make_pair(now,nxt)].second);
+        ans.push_back(nxt);
         now = nxt;
 
 
     }
-    routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].first);
-    routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].second);
-    return routeout;
+    ans.push_back(dest+IAMHOST);
+    return ans;
 }

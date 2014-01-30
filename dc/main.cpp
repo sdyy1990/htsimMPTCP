@@ -21,14 +21,14 @@
 #include "connection_matrix.h"
 //#include "fat_tree_topology.h"
 #include "sw_topology.h"
-//#include "s2_topology.h"
-//#include "jelly_topology.h"
+#include "s2_topology.h"
+#include "jelly_topology.h"
 //#include "star_topology.h"
 #include <list>
-
+#include <queue>
 // Simulation params
 
-#define PRINT_PATHS 1
+#define PRINT_PATHS 0
 
 #define PERIODIC 0
 #include "main.h"
@@ -47,6 +47,28 @@ string itoa (uint64_t n);
 EventList eventlist;
 
 Logfile *lg;
+class TimeSpeedLogger{
+public:
+    list<double> Q;
+    int _siz;
+    double tot;
+    TimeSpeedLogger(int siz){
+       _siz = siz; tot = 0.0;
+    }
+    void push(double t) {
+//        if (t>10000000) return ;
+        Q.push_back(t);
+        tot += t;
+        if (Q.size() > _siz) {
+            tot -= *(Q.begin());
+            Q.pop_front();
+        }
+    }
+    double avr() {
+       if (Q.size()==0) return 0.0;
+       else return tot/Q.size();
+    }
+};
 
 void
 exit_error (char *progr)
@@ -95,7 +117,7 @@ main (int argc, char **argv)
     bool uselog = false;
     uint32_t topoType = FATTREE_TOPO;
     char * topofilename, *pathfilename;
-    filename << "logout.dat";
+    filename << "/dev/null";
     int i = 1;
     while (i < argc) {
         int i0=i;
@@ -159,10 +181,11 @@ main (int argc, char **argv)
     srand (time (NULL));
     cout << "Using algo=" << algo << " epsilon=" << epsilon << endl;
     // prepare the loggers
-    cout << "Logging to " << filename.str () << endl;
+//    cout << "Logging to " << filename.str () << endl;
     //Logfile
     Logfile logfile (filename.str (), eventlist);
-    if (!uselog) logfile.shutdown();
+    
+    //if (!uselog) logfile.shutdown();
 #if PRINT_PATHS
     filename << ".paths";
     cout << "Logging path choices to " << filename.str () << endl;
@@ -176,12 +199,13 @@ main (int argc, char **argv)
 #endif
     int tot_subs = 0;
     int cnt_con = 0;
-    lg = &logfile;
+//    lg = &logfile;
+    lg = NULL;
     logfile.setStartTime (timeFromSec (0));
     SinkLoggerSampling sinkLogger =
         SinkLoggerSampling (timeFromMs (1000), eventlist);
     logfile.addLogger (sinkLogger);
-    //TcpLoggerSimple logTcp;logfile.addLogger(logTcp);
+    TcpLoggerSimple logTcp;logfile.addLogger(logTcp);
     TcpSrc *tcpSrc;
     TcpSink *tcpSnk;
     //CbrSrc* cbrSrc;
@@ -195,8 +219,8 @@ main (int argc, char **argv)
     Topology *top;
   //  if (topoType == FATTREE_TOPO)        top    = new FatTreeTopology (&logfile, &eventlist);
     if (topoType == SW_TOPO)        top    = new SWTopology (&logfile, &eventlist, topofilename);
-//    if (topoType == S2_TOPO)        top    = new S2Topology (&logfile, &eventlist, topofilename);
-//    if (topoType == JE_TOPO)        { JellyTopology * jtop = new JellyTopology(&logfile, &eventlist, topofilename,pathfilename); top = jtop;    jtop->set_maxpathcount(subflow_count);        }
+    if (topoType == S2_TOPO)        top    = new S2Topology (&logfile, &eventlist, topofilename);
+    if (topoType == JE_TOPO)        { JellyTopology * jtop = new JellyTopology(&logfile, &eventlist, topofilename,pathfilename); top = jtop;    jtop->set_maxpathcount(subflow_count);        }
 
 
     N = top->get_host_count();
@@ -291,10 +315,10 @@ main (int argc, char **argv)
                 tcpSrc->setName ("mtcp_" + ntoa (src) + "_" +
                                  ntoa (inter) + "_" + ntoa (dest));
 
-                logfile.writeName (*tcpSrc);
+                //logfile.writeName (*tcpSrc);
                 tcpSnk->setName ("mtcp_sink_" + ntoa (src) + "_" +
                                  ntoa (inter) + "_" + ntoa (dest));
-                logfile.writeName (*tcpSnk);
+                //logfile.writeName (*tcpSnk);
                 tcpRtxScanner.registerTcp (*tcpSrc);
 
                 int choice = 0;
@@ -332,7 +356,7 @@ main (int argc, char **argv)
                 if (inter == 0) {
                     mtcp->setName ("multipath" + ntoa (src) + "_" +
                                    ntoa (dest) +")");
-                    logfile.writeName (*mtcp);
+                //    logfile.writeName (*mtcp);
                 }
 
                 tcpSrc->connect (*routeout, *routein, *tcpSnk,
@@ -355,19 +379,25 @@ main (int argc, char **argv)
             cnt_con) << endl;
     // Record the setup
     int pktsize = TcpPacket::DEFAULTDATASIZE;
-    logfile.write ("# pktsize=" + ntoa (pktsize) + " bytes");
+    /*logfile.write ("# pktsize=" + ntoa (pktsize) + " bytes");
     logfile.write ("# subflows=" + ntoa (subflow_count));
     logfile.write ("# hostnicrate = " + ntoa (HOST_NIC) + " pkt/sec");
     logfile.write ("# corelinkrate = " + ntoa (HOST_NIC * CORE_TO_HOST) +
                    " pkt/sec");
+                   */
     //logfile.write("# buffer = " + ntoa((double) (queues_na_ni[0][1]->_maxsize) / ((double) pktsize)) + " pkt");
     double rtt = timeAsSec (timeFromUs (RTT));
-    logfile.write ("# rtt =" + ntoa (rtt));
+    //logfile.write ("# rtt =" + ntoa (rtt));
     // GO!
     double last = 0.0;
     vector<uint64_t> finished_bytes;
     double tick = 10.0;
     finished_bytes.resize(mptcpVector.size());
+    for (int i = 0 ; i < mptcpVector.size(); i++) finished_bytes[i] = mptcpVector[i]->compute_total_bytes();
+    vector< TimeSpeedLogger * > VTLogger;
+    for (int i = 0 ; i < mptcpVector.size(); i++) 
+        VTLogger.push_back(new TimeSpeedLogger(20));
+
     while (eventlist.doNextEvent ()) {
         if (mlistener->_total_finished == cnt_con) break;
         if (timeAsMs(eventlist.now())>last+tick) {
@@ -375,18 +405,25 @@ main (int argc, char **argv)
             double tot = 0;
             double maxb = 0.0;
             vector<uint64_t>::iterator iB = finished_bytes.begin();
-            for (vector<MultipathTcpSrc*>::iterator iA = mptcpVector.begin();  iA!=mptcpVector.end(); iA++,iB++) {
+            vector<TimeSpeedLogger *>::iterator iC = VTLogger.begin();
+            for (vector<MultipathTcpSrc*>::iterator iA = mptcpVector.begin();  iA!=mptcpVector.end(); iA++,iB++,iC++) {
                 uint64_t ttmp;
 //              printf("% 4.3lf,",((ttmp=(*iA)->compute_total_bytes())-*iB)/(1000*tick));
                 double wq;
                 ttmp = (*iA)->compute_total_bytes();
-                tot += (wq=(ttmp - *iB)); 
-                if (wq/(1000*tick) > 125) printf("% 4lf,",wq/(1000*tick));
-                if (-*iB + ttmp > maxb) maxb =- *iB + ttmp;
+                (wq=(ttmp - *iB)); 
+                 
+                (*iC)->push(wq);
+
+//                printf("% 4.1lf:", wq);
+//                printf("% 4.1lf",(*iC)->avr()/(1000*tick));
+                tot += (*iC)-> avr();
+                if ( (*iC)->avr() > maxb ) maxb = (*iC)-> avr();
+                
                 *iB = ttmp;
             }
 
-            printf("\n,avr=% 8.3lf,",tot/mptcpVector.size()/(1000*tick));
+            printf(",avr=% 8.3lf,",tot/mptcpVector.size()/(1000*tick));
             printf("max= %8.3lf\n",maxb/(1000*tick));
 
         }

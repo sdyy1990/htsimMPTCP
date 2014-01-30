@@ -15,6 +15,7 @@ QueueLoggerSampling::doNextEvent()
     eventlist().sourceIsPendingRel(*this,_period);
     if (_queue==NULL) return;
     mem_b queuebuff = _queue->_maxsize;
+    if (_logfile) {
     if (!_seenQueueInD) { // queue size hasn't changed in the past D time units
         _logfile->writeRecord(QUEUE_APPROX,_queue->id,QUEUE_RANGE,(double)_lastq,(double)_lastq,(double)_lastq);
         _logfile->writeRecord(QUEUE_APPROX,_queue->id,QUEUE_OVERFLOW,0,0,(double)queuebuff);
@@ -23,12 +24,15 @@ QueueLoggerSampling::doNextEvent()
         _logfile->writeRecord(QUEUE_APPROX,_queue->id,QUEUE_RANGE,(double)_lastq,(double)_minQueueInD,(double)_maxQueueInD);
         _logfile->writeRecord(QUEUE_APPROX,_queue->id,QUEUE_OVERFLOW,-(double)_lastIdledInD,(double)_lastDroppedInD,(double)queuebuff);
     }
+    }
     _seenQueueInD=false;
     simtime_picosec now = eventlist().now();
     simtime_picosec dt_ps = now-_lastlook;
     _lastlook = now;
     if ((_queue!=NULL) & (_queue->_queuesize==0)) _cumidle += timeAsSec(dt_ps); // if the queue is empty, we've just been idling
+    if (_logfile) {
     _logfile->writeRecord(QUEUE_RECORD,_queue->id,CUM_TRAFFIC,_cumarr,_cumidle,_cumdrop);
+    }
 }
 
 

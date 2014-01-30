@@ -17,7 +17,7 @@ public:
 
 private:
     int virtual_distance(int src, int dest);
-    route_t * get_path_with_firsthop(int , int , int );
+    vector<int> get_path_with_firsthop(int , int , int );
 };
     
 #endif 

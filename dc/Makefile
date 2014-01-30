@@ -7,7 +7,7 @@ LIB=-L./htsimlib
 #-Lksp
 
 all:	htsim_dc
-htsim_dc: main.o subflow_control.o connection_matrix.o shortflows.o sw_topology.o
+htsim_dc: main.o subflow_control.o connection_matrix.o shortflows.o sw_topology.o s2_topology.o jelly_topology.o
 	$(CC) $(CFLAGS) $^ $(LIB) -lhtsim -o htsim_dc
 
 

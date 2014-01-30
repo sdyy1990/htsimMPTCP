@@ -151,7 +151,6 @@ vector<int>  SWTopology::get_path_with_firsthop(int src,int dest, int first_hop)
     ans.push_back(assignedSwitch[src]);
     ans.push_back(now);
     while (now!=end) {
-        std::cout <<  "   end  " << end << "    now" << now << endl;
         int mindest = 0x3FFFFFFF;
         int nxt ;
         int nowdst;

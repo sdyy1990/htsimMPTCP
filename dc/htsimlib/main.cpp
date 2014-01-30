@@ -75,22 +75,22 @@ int main(int argc, char **argv) {
 
     // prepare the loggers
     stringstream filename(ios_base::out);
-    filename << "../data/logout.dat";
+    filename << "/dev/null";
     cout << "Outputting to " << filename.str() << endl;
     Logfile logfile(filename.str(),eventlist);
 
     logfile.setStartTime(timeFromSec(0.5));
     QueueLoggerSimple logQueue = QueueLoggerSimple();
     logfile.addLogger(logQueue);
-    //	QueueLoggerSimple logPQueue1 = QueueLoggerSimple(); logfile.addLogger(logPQueue1);
+    	QueueLoggerSimple logPQueue1 = QueueLoggerSimple(); logfile.addLogger(logPQueue1);
     //QueueLoggerSimple logPQueue3 = QueueLoggerSimple(); logfile.addLogger(logPQueue3);
     QueueLoggerSimple logPQueue = QueueLoggerSimple();
     logfile.addLogger(logPQueue);
     MultipathTcpLoggerSimple mlogger = MultipathTcpLoggerSimple();
     logfile.addLogger(mlogger);
 
-    //TrafficLoggerSimple logger;
-    //logfile.addLogger(logger);
+    TrafficLoggerSimple logger;
+    logfile.addLogger(logger);
     SinkLoggerSampling sinkLogger = SinkLoggerSampling(timeFromMs(100),eventlist);
 
     logfile.addLogger(sinkLogger);

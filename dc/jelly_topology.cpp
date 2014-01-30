@@ -59,37 +59,30 @@ EventList * ev, char * fname, char * pathname) {
 void JellyTopology::set_maxpathcount(int n) {
     max_pathcount = n;
 }
-vector<route_t *> * JellyTopology::get_paths(int src, int dest) {
-    int now = assignedSwitch[src];
-    int end = assignedSwitch[dest];
-    vector<route_t * > * paths = new vector<route_t *> ();
-    if (now == end) {
-        route_t * routeout;
-        routeout = new route_t();
-        routeout->push_back(mapQ[make_pair(src+IAMHOST,now)].first);
-        routeout->push_back(mapQ[make_pair(src+IAMHOST,now)].second);
-        routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].first);
-        routeout->push_back(mapQ[make_pair(now,dest+IAMHOST)].second);
-        paths -> push_back(routeout);
-        return paths;
-    }
-    vector< vector<int>  > * pV;
-    pV = &(mapP[make_pair(now,end)]);
-    int cnt = 0;
-    for (vector< vector<int> >::iterator iV = (pV->begin()); iV!=pV->end() && cnt < max_pathcount; iV++) {
-        route_t * routeout; routeout = new route_t();
-        routeout->push_back(mapQ[make_pair(src+IAMHOST,now)].first);
-        routeout->push_back(mapQ[make_pair(src+IAMHOST,now)].second);
-        for (int i = 0 ; i < iV->size() -1 ;   i++) {
-            routeout->push_back(mapQ[make_pair((iV->at(i)),(iV->at(i+1)))].first);
-            routeout->push_back(mapQ[make_pair(iV->at(i),iV->at(i+1))].second);
-        }
-        routeout->push_back(mapQ[make_pair(end,dest+IAMHOST)].first);
-        routeout->push_back(mapQ[make_pair(end,dest+IAMHOST)].second);
-        paths->push_back(routeout);
-
-    }
-    return paths;
+vector< vector< int > > JellyTopology::get_paths_V(int src, int dest) {
+   int now = assignedSwitch[src];
+   int end = assignedSwitch[dest];
+   vector< vector< int> > ans;
+   if (now == end) {
+      vector<int> VA;
+      VA.push_back(src+IAMHOST);
+      VA.push_back(now);
+      VA.push_back(dest+IAMHOST);
+      ans.push_back(VA);
+   }
+   vector<vector<int> > * pV;
+   pV = &(mapP[make_pair(now,end)]);
+   int cnt = 0 ;
+   for (vector<vector<int> >:: iterator iV = (pV->begin()); iV!=(pV->end()) && cnt < max_pathcount; iV++,cnt++) {
+        vector<int> tmp(*iV);
+        tmp.insert(tmp.begin(),src+IAMHOST);
+        tmp.push_back(dest+IAMHOST);
+        ans.push_back(tmp);
+   //     for (vector<int>::iterator iVV= tmp.begin(); iVV!=tmp.end(); iVV++) 
+//            cout <<"."<<*iVV;
+//            cout << endl;
+   }
+//   cout << "here " << src <<" " << dest<<" " << endl;
+   return ans;
 }
-
 
